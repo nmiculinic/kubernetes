@@ -134,6 +134,11 @@ const (
 )
 
 const (
+	nodeCloudControllerAnnotation = "alpha.kubernetes.io/cloud-controller"
+	bareMetalCloudController      = "bare-metal"
+)
+
+const (
 	// The amount of time the nodecontroller should sleep between retrying node health updates
 	retrySleepTime = 20 * time.Millisecond
 )
@@ -794,9 +799,14 @@ func (nc *Controller) monitorNodeHealth() error {
 				}
 			}
 
+			managingCloudController, isControlerSet := node.Annotations["alpha.kubernetes.io/cloud-controller"]
+			if isControlerSet {
+				klog.V(6).Infoln("Managing cloud controller for node %s is %s", node.Name, managingCloudController)
+			}
+
 			// Check with the cloud provider to see if the node still exists. If it
 			// doesn't, delete the node immediately.
-			if currentReadyCondition.Status != v1.ConditionTrue && nc.cloud != nil {
+			if currentReadyCondition.Status != v1.ConditionTrue && nc.cloud != nil && (!isControlerSet || managingCloudController != bareMetalCloudController) {
 				// check is node shutdowned, if yes do not deleted it. Instead add taint
 				shutdown, err := nc.nodeShutdownInCloudProvider(context.TODO(), node)
 				if err != nil {
